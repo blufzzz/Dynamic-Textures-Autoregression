@@ -1,0 +1,61 @@
+make_logs: true
+interpolate: true
+interpolation_size: [128, 128] 
+
+opt:
+  device: 1
+  criterion: "Perceptual" # use with positive gamma
+  # grad_clip: 1
+  use_scaler: true
+  start_epoch: 0
+  n_epochs: 9999
+
+  input_len: 64
+  output_len: 16
+
+  augmentation: false
+
+  train_batch_size: 1
+  val_batch_size: 1
+
+  lr: 0.001 
+  save_model: true 
+
+model:
+  name: "v2v" # "unet3d" 
+  skip_concat: false #false # whether concatenate and convolve skip connections as in U-Net
+  input_channels: 3 # RGB
+  sigmoid: true
+  activation: 'LeakyReLU'
+  normalization: 'instance_norm' # 'group_norm' or 'instance_norm'
+  use_skip_connections: false # if true skip_connections in `v2v_configuration` will be activated
+  
+  # IMPORTANT: Full downsampling-upsampling symmetry is implied!!!
+  # they should have the same order of `Res3DBlock`->`Pool3DBlock` and `Res3DBlock`->`Upsample3DBlock`
+  # to ensure proper skip connection
+  
+  v2v_configuration:
+  
+    skip_block_type: 'Res3DBlock'
+
+    # first should be Res3DBlock
+    downsampling: [{'module_type': 'Res3DBlock', 'params':[128,128], 'skip_connection':true}, # L
+                   {'module_type': 'Pool3DBlock', 'params': [2]}, # pool
+                   {'module_type': 'Res3DBlock', 'params':[128,128], 'skip_connection':true},  # L/2
+                   {'module_type': 'Pool3DBlock', 'params': [2]}, # pool
+                   {'module_type': 'Res3DBlock', 'params':[128,128], 'skip_connection':true},  # L/4
+                   {'module_type': 'Pool3DBlock', 'params':[2]}, # pool
+                   {'module_type': 'Res3DBlock', 'params':[128,256], 'skip_connection':true}]  # L/8
+
+    bottleneck: [{'module_type': 'Res3DBlock', 'params': [256,256]} ] 
+
+    upsampling: [{'module_type': 'Res3DBlock', 'params':[256,128]}, # add skip_connection L/8
+                 {'module_type': 'Upsample3DBlock', 'params': [128, 128, 2, 2]}, 
+                 {'module_type': 'Res3DBlock', 'params':[128,128]},  # add skip_connection L/4
+                 {'module_type': 'Upsample3DBlock', 'params': [128, 128, 2, 2]},
+                 {'module_type': 'Res3DBlock', 'params':[128,128]},  # add skip_connection  # L/2
+                 {'module_type': 'Upsample3DBlock', 'params':[128, 64, 2, 2]},
+                 {'module_type': 'Res3DBlock', 'params':[64,64]}]  # add skip_connection L
+    # last should be Res3DBlock
+                  
+                  
